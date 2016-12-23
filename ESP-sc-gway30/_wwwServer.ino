@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2016 Maarten Westenberg version for ESP8266
-// Verison 3.2.0
-// Date: 2016-10-08
+// Verison 3.2.1
+// Date: 2016-12-08
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.

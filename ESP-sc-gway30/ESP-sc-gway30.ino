@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2016 Maarten Westenberg version for ESP8266
-// Verison 3.2.0
-// Date: 2016-10-29
+// Verison 3.2.1
+// Date: 2016-12-12
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1-ch gateway
 //	and many others.
@@ -13,7 +13,7 @@
 //
 // Author: Maarten Westenberg
 //
-// The protocols used in this 1ch gateway: 
+// The protocols and specifications used for this 1ch gateway: 
 // 1. LoRA Specification version V1.0 and V1.1 for Gateway-Node communication
 //	
 // 2. Semtech Basic communication protocol between Lora gateway and server version 3.0.0
@@ -32,7 +32,7 @@
 #include "ESP-sc-gway.h"						// This file contains configuration of GWay
 
 #if WIFIMANAGER>0
-#include "FS.h"
+#include <WiFiManager.h>						// Library for ESP WiFi config through an AP
 #endif
 
 #include <Esp.h>
@@ -49,7 +49,7 @@
 #include <ESP8266WiFi.h>
 #include <DNSServer.h> 							// Local DNSserver
 #include <ESP8266WebServer.h>
-#include <WiFiManager.h>						// Library for ESP WiFi config through an AP
+#include "FS.h"
 #include <WiFiUdp.h>
 
 #if GATEWAYNODE==1
@@ -141,8 +141,9 @@ SimpleTimer timer; 								// Timer is needed for delayed sending
 uint8_t buff_up[TX_BUFF_SIZE]; 					// buffer to compose the upstream packet to backend server
 uint8_t buff_down[RX_BUFF_SIZE];				// Buffer for downstream
 uint16_t lastToken = 0x00;
+
 #if GATEWAYNODE==1
-uint16_t frameCount=0;							// We REALLY should write this to SPIFF file
+uint16_t frameCount=1;							// We REALLY should write this to SPIFF file
 #endif
 
 // ----------------------------------------------------------------------------
@@ -751,8 +752,9 @@ void sendstat() {
     stat_index = 12;										// 12-byte header
 	
     t = now();												// get timestamp for statistics
-		
-	sprintf(stat_timestamp, "%d-%d-%2d %d:%d:%02d CET", year(),month(),day(),hour(),minute(),second());
+	
+	// XXX Using CET as the current timezone. Change to your timezone	
+	sprintf(stat_timestamp, "%04d-%02d-%02d %02d:%02d:%02d CET", year(),month(),day(),hour(),minute(),second());
 	yield();
 	
 	ftoa(lat,clat,4);										// Convert lat to char array with 4 decimals

@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2016 Maarten Westenberg version for ESP8266
-// Verison 3.2.0
-// Date: 2016-10-08
+// Verison 3.2.1
+// Date: 2016-12-08
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -664,9 +664,10 @@ int sendPacket(uint8_t *buff_down, uint8_t length) {
 // buff_up: The buffer that is generated for upstream
 // message: The payload message toincludein the the buff_up
 // messageLength: The number of bytes received by the LoRa transceiver
+// internal: Boolean value to indicate whethe rthe local sensor is processed
 //
 // ----------------------------------------------------------------------------
-int buildPacket(uint32_t tmst, uint8_t *buff_up, uint8_t *message, char messageLength) {
+int buildPacket(uint32_t tmst, uint8_t *buff_up, uint8_t *message, char messageLength, bool internal) {
 
 	long SNR;
     int rssicorr;
@@ -675,26 +676,34 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, uint8_t *message, char messageL
 	lastTmst = tmst;									// Following/according to spec
 	int buff_index=0;
 	
-	uint8_t value = readRegister(REG_PKT_SNR_VALUE);		// 0x19; 
-    if( value & 0x80 ) {								// The SNR sign bit is 1
+	// Read SNR and RSSI from the register. Note: Not for internal sensors!
+	// For internal sensor we fake these values as we cannot read a register
+	if (internal) {
+		SNR = 12;
+		rssicorr = 157;
+		prssi = 50;
+	}
+	else {
+	  uint8_t value = readRegister(REG_PKT_SNR_VALUE);	// 0x19; 
+      if( value & 0x80 ) {								// The SNR sign bit is 1
 		// Invert and divide by 4
 		value = ( ( ~value + 1 ) & 0xFF ) >> 2;
 		SNR = -value;
-    }
-	else {
+      }
+	  else {
 		// Divide by 4
 		SNR = ( value & 0xFF ) >> 2;
-	}
+	  }
 	
-	prssi = readRegister(REG_PKT_RSSI);				// read register 0x1A
+	  prssi = readRegister(REG_PKT_RSSI);				// read register 0x1A
     
-	// Correction of RSSI value based on chip used.	
-	if (sx1272) {
+	  // Correction of RSSI value based on chip used.	
+	  if (sx1272) {
 		rssicorr = 139;
-	} else {											// Probably SX1276 or RFM95
+	  } else {											// Probably SX1276 or RFM95
 		rssicorr = 157;
-	}
-			
+	  }
+	}		
 	if (debug>=1) {
 		Serial.print(F("Packet RSSI: "));
 		Serial.print(prssi-rssicorr);
@@ -853,8 +862,8 @@ int receivePacket(uint8_t * buff_up) {
 		
 		// Handle the physical data read from FiFo
         if((messageLength = receivePkt(message)) > 0){
-			
-            int buff_index = buildPacket(tmst, buff_up, message, messageLength);
+			// external received packet, so last parameter is false
+            int buff_index = buildPacket(tmst, buff_up, message, messageLength, false);
 			return(buff_index);
 			
         } // received a message

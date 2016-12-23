@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2016 Maarten Westenberg version for ESP8266
-// Verison 3.2.0
-// Date: 2016-10-08
+// Verison 3.2.1
+// Date: 2016-12-08
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -53,7 +53,7 @@ int LoRaSensors(uint8_t *buf) {
 	buf[0] = 0x86;									// User code <lCode + len==3 + Parity
 	buf[1] = 0x80;									// lCode code <battery>
 	buf[2] = 0x3F;									// lCode code <value>
-	return 3;										// return the number of bytes added to teh payload
+	return 3;										// return the number of bytes added to the payload
 }
 
 // ----------------------------------------------------------------------------
@@ -81,17 +81,17 @@ void encodePacket(uint8_t *Data, uint8_t DataLength, uint16_t FrameCount, uint8_
 		
 		Block_A[1] = 0x00; Block_A[2] = 0x00; Block_A[3] = 0x00; Block_A[4] = 0x00;
 
-		Block_A[5] = Direction;		// 0 is uplink
+		Block_A[5] = Direction;				// 0 is uplink
 
-		Block_A[6] = DevAddr[3];	// Only works for and with ABP
+		Block_A[6] = DevAddr[3];			// Only works for and with ABP
 		Block_A[7] = DevAddr[2];
 		Block_A[8] = DevAddr[1];
 		Block_A[9] = DevAddr[0];
 
 		Block_A[10] = (FrameCount & 0x00FF);
 		Block_A[11] = ((FrameCount >> 8) & 0x00FF);
-		Block_A[12] = 0x00; 		// Frame counter upper Bytes
-		Block_A[13] = 0x00;			// These are not used so are 0
+		Block_A[12] = 0x00; 				// Frame counter upper Bytes
+		Block_A[13] = 0x00;					// These are not used so are 0
 
 		Block_A[14] = 0x00;
 
@@ -134,7 +134,7 @@ int sensorPacket(uint8_t * buff_up) {
 	// MACPayload:  FHDR + FPort + FRMPayload
 	
 	// FHDR consists of 4 bytes addr, 1byte Fctrl, 2bye FCnt, 0-15 byte FOpts
-	//	We support ABP sddresses only for Gateways
+	//	We support ABP addresses only for Gateways
 	message[1] = DevAddr[3];							// Last byte[3] of address
 	message[2] = DevAddr[2];
 	message[3] = DevAddr[1];
@@ -145,7 +145,7 @@ int sensorPacket(uint8_t * buff_up) {
 	message[7] = frameCount / 0x100;					// MSB
 	
 	// FPort, either 0 or 1 bytes. Must be != 0 for non MAC messages such as user payload
-	message[8] = 0x01;									// Portmust not be 0
+	message[8] = 0x01;									// Port must not be 0
 	mlength = 9;
 	
 	// FRMPayload; Payload will be AES128 encoded using AppSKey
@@ -165,7 +165,7 @@ int sensorPacket(uint8_t * buff_up) {
 	frameCount++;
 	
 	Serial.println(F("sensorPacket"));
-	int buff_index = buildPacket(tmst, buff_up, message, mlength);
+	int buff_index = buildPacket(tmst, buff_up, message, mlength, true);
 	return(buff_index);
 }
 
