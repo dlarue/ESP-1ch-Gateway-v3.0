@@ -27,7 +27,7 @@
 // ----------------------------------------------------------------------------------------
 
 //
-#define VERSION " ! V. 3.2.0, 161029"
+#define VERSION " ! V. 3.2.2, 161129"
 
 #include "ESP-sc-gway.h"						// This file contains configuration of GWay
 
@@ -730,8 +730,8 @@ void sendstat() {
     uint8_t status_report[STATUS_SIZE]; 					// status report as a JSON object
     char stat_timestamp[32];								// XXX was 24
     time_t t;
-	char clat[8]={0};
-	char clon[8]={0};
+	char clat[10]={0};
+	char clon[10]={0};
 
     int stat_index=0;
 	
