@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2016 Maarten Westenberg version for ESP8266
-// Verison 3.2.1
-// Date: 2016-12-20
+// Verison 3.2.2
+// Date: 2016-12-29
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -68,8 +68,12 @@
 // accesspoint we last connected to with WifiManager
 // NOTE: Structure needs at least one (empty) entry.
 //		So WPASIZE must be >= 1
-#define WPASIZE 2
-char *wpa[WPASIZE][2] = {
+struct wpas {
+	char login[32];				// Maximum Buffer Size (and allocated memory)
+	char passw[64];
+};
+
+wpas wpa[] = {
 	 { "", ""}
 	,{ "Energiefabriek","Power123"}
 };

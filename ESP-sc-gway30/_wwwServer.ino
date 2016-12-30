@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2016 Maarten Westenberg version for ESP8266
-// Verison 3.2.1
-// Date: 2016-12-08
+// Verison 3.2.2
+// Date: 2016-12-29
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -106,14 +106,15 @@ String WifiServer(char *cmd, char *arg) {
 		cp_nb_rx_ok = 0;
 		cp_up_pkt_fwd = 0;
 	}
+#if WIFIMANAGER==1
 	if (strcmp(cmd, "NEWSSID")==0) { 
 		WiFiManager wifiManager;
-		strcpy(wpa[0][0],""); 
-		strcpy(wpa[0][1],"");
+		strcpy(wpa[0].login,""); 
+		strcpy(wpa[0].passw,"");
 		WiFi.disconnect();
 		wifiManager.autoConnect(AP_NAME, AP_PASSWD );
 	}
-
+#endif
 	// Do work, fill the webpage
 	delay(15);	
 	response +="<!DOCTYPE HTML>";
@@ -208,9 +209,10 @@ String WifiServer(char *cmd, char *arg) {
 
 	
 	response +="Click <a href=\"/RESET\">here</a> to reset statistics<br><br>";
-	
-	response +="Click <a href=\"/NEWSSID\">here</a> to reset accesspoint<br>";
 
+#if WIFIMANAMER==1	
+	response +="Click <a href=\"/NEWSSID\">here</a> to reset accesspoint<br>";
+#endif
 	response +="Set txDelay level: ";
 	response +=" <a href=\"DELAY=1\">Higher</a><nbsp><nbsp><nbsp><nbsp>";
 	response +=" <a href=\"DELAY=-1\">Lower</a>";

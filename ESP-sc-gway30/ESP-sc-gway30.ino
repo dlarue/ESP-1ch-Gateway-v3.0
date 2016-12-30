@@ -1,7 +1,7 @@
 //
 // Copyright (c) 2016 Maarten Westenberg version for ESP8266
-// Verison 3.2.1
-// Date: 2016-12-12
+// Verison 3.2.2
+// Date: 2016-12-29
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1-ch gateway
 //	and many others.
@@ -327,7 +327,7 @@ IPAddress getDnsIP() {
 // config.txt is a text file that contains line(!) with WPA configuration items
 // Each line contains an SSID and a Password for an access point
 // ----------------------------------------------------------------------------
-int WlanReadWpa( int maxwpa ) {
+int WlanReadWpa() {
 
 	const char wpafile[] = "/config.txt";
 	if (!SPIFFS.exists(wpafile)) {
@@ -349,14 +349,13 @@ int WlanReadWpa( int maxwpa ) {
 	pass.toCharArray(passBuf,pass.length()+1);
 	Serial.print(F("WlanReadWpa: ")); Serial.print(ssidBuf); Serial.print(F(", ")); Serial.println(passBuf);
 	
-	//strcpy(wpa[0][0] , ssidBuf);
-	//strcpy(wpa[0][1] , passBuf);
-	wpa[0][0] = ssidBuf;
-	wpa[0][1] = passBuf;
+	strcpy(wpa[0].login, ssidBuf);				// XXX changed from wpa[0][0] = ssidBuf
+	strcpy(wpa[0].passw, passBuf);
+	
 	Serial.print(F("WlanReadWpa: <")); 
-	Serial.print(wpa[0][0]); 
+	Serial.print(wpa[0].login); 				// XXX
 	Serial.print(F(">, <")); 
-	Serial.print(wpa[0][1]);
+	Serial.print(wpa[0].passw);
 	Serial.println(F(">"));
 #endif
 	f.close();
@@ -386,7 +385,9 @@ int WlanConnect() {
 
   // We start by connecting to a WiFi network
   wifi_station_set_hostname( "espgway" );
+#if WIFIMANAGER==1
   WiFiManager wifiManager;
+#endif
   unsigned char agains = 0;
   unsigned char wpa_index = (WIFIMANAGER >0 ? 0 : 1);	// Skip over first record for WiFiManager
   Serial.print(F("WlanConnect:: wpa_index=")); Serial.println(wpa_index);
@@ -395,8 +396,10 @@ int WlanConnect() {
   while (WiFi.status() != WL_CONNECTED)
   {
 	// Start with well-known access points in the list
-    char *ssid = wpa[wpa_index][0];
-	char *password = wpa[wpa_index][1];
+	
+	char *ssid		= wpa[wpa_index].login;
+	char *password	= wpa[wpa_index].passw;
+	
 	Serial.print(wpa_index); Serial.print(F(". WiFi connect to: ")); Serial.println(ssid);
 	WiFi.begin(ssid, password);
 	
@@ -419,7 +422,8 @@ int WlanConnect() {
 		}
 	}
 	wpa_index++;
-	if (wpa_index >= WPASIZE) { break; }
+	//if (wpa_index >= WPASIZE) { break; }
+	if (wpa_index >= (sizeof(wpa)/sizeof(wpa[0]))) { break; }
   }
   
   // Still not connected?
@@ -828,7 +832,7 @@ void setup () {
 		yield();
 	}
 	
-	WlanReadWpa(WPASIZE);								// Read the last Wifi settings from SPIFFS into memory
+	WlanReadWpa();								// Read the last Wifi settings from SPIFFS into memory
 	
 	// Setup WiFi UDP connection. Give it some time ..
 	while (WlanConnect() < 0) {
