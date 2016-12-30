@@ -44,6 +44,15 @@ Version 3.0 includes WiFi Master support which makes it easy to use the 1-ch gat
 
 ##Features
 
+New features in version 3.3 (December 29, 2016)):
+
+- Repair the situation where WIFIMANAGER was set to 0 in the ESP-sc-gway.h file. The sketch would not compile which is now repaired
+- The compiler would issue a set of warnings related to the ssid and passw setting in the ESP-sc-geway.h file. Compiler was complaining (and it should) because char* were statically initialised and modified in the code.
+
+New features in version 3.2 (December 20, 2016)):
+
+- Repair the status messages to the server. All seconds, minutes, hours etc. are now reported in 2 digits. The year is reported in 4 digits.
+
 New features in version 3.1 (September 29, 2016)):
 
 - In the ESP-sc-gway.h it is possible to set the gateway as sensor node as well. Just set the DevAddr and AppSKey in the _sensor.ino file and be able to forward any sensor or other values to the server as if they were coming from a LoRa node.
