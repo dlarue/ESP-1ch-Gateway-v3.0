@@ -58,10 +58,24 @@
 // See spec. para 4.3.2
 #define GATEWAYNODE 0	
 
+// Define whether we want to manage the gateway over UDP (next to management thru webinterface).
+// This will allow us to send messages over the UDP connection to manage the gateway and its 
+// parameters. Sometimes the gateway is not accesible from remote, in this case we would allow it 
+// to use the SERVER UDP connection to receive messages as well.
+// NOTE: Be aware that these messages are NOT LoRa and NOT LoRa Gateway spec compliant.
+//	However that should not interfere with regular gateway operation but instead offer 
+//	functions to reset certain parameters from remote.
+#define GATEWAYMGT 1
+
 // Define the correct radio type that you are using
 #define CFG_sx1276_radio		
 //#define CFG_sx1272_radio
-					
+
+// Name of he configfile in SPIFFs	filesystem
+// In this file we store the configuration and other relevant info that should
+// survive a reboot of the gateway		
+#define CONFIGFILE "/gwayConfig.txt"
+								
 // Wifi definitions
 // WPA is an array with SSID and password records. Set WPA size to number of entries in array
 // When using the WiFiManager, we will overwrite the first entry with the 
@@ -123,3 +137,10 @@ wpas wpa[] = {
 #else
 #define ASSERT(cond) /**/
 #endif
+struct espGwayConfig {
+	String ssid;				// String is more flexible and allows assignments
+	String pass;
+	uint32_t freq;				//=868100000 by default
+	uint16_t fcnt;				//=0 as init value
+	uint8_t sf;					//=9;
+} gwayConfig;

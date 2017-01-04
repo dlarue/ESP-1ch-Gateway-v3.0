@@ -1,7 +1,7 @@
-//
-// Copyright (c) 2016 Maarten Westenberg version for ESP8266
-// Verison 3.2.2
-// Date: 2016-12-29
+// 1-channel LoRa Gateway for ESP8266
+// Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
+// Verison 3.3.0
+// Date: 2017-01-02
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1-ch gateway
 //	and many others.
@@ -11,7 +11,7 @@
 // which accompanies this distribution, and is available at
 // https://opensource.org/licenses/mit-license.php
 //
-// Author: Maarten Westenberg
+// Author: Maarten Westenberg (mw12554@hotmail.com)
 //
 // The protocols and specifications used for this 1ch gateway: 
 // 1. LoRA Specification version V1.0 and V1.1 for Gateway-Node communication
@@ -27,7 +27,7 @@
 // ----------------------------------------------------------------------------------------
 
 //
-#define VERSION " ! V. 3.2.2, 161129"
+#define VERSION " ! V. 3.3.0, 161230"
 
 #include "ESP-sc-gway.h"						// This file contains configuration of GWay
 
@@ -70,10 +70,16 @@ extern "C" {
 
 int debug=1;									// Debug level! 0 is no msgs, 1 normal, 2 is extensive
 
+// You can switch webserver off if not necessary but probably better to leave it in.
+#if A_SERVER==1
+#include <Streaming.h>          				// http://arduiniana.org/libraries/streaming/
+  String webPage;
+  ESP8266WebServer server(SERVERPORT);
+#endif
 using namespace std;
 
 byte currentMode = 0x81;
-uint8_t message[256];
+//uint8_t message[256];							// May not be necessary if we declare these int functions
 char b64[256];
 bool sx1272 = true;								// Actually we use sx1276/RFM95
 
@@ -97,7 +103,7 @@ char MAC_char[19];
 // SX1276 - ESP8266 connections
 int ssPin = 16;									// GPIO16, D0
 int dio0  = 15;									// GPIO15, D8
-int dio1  = 4;									// GPIO4,  D2
+int dio1  = 4;									// GPIO4,  D2 XXX Not necessary in single channel gateway
 int dio2  = 0;									// GPIO3, !! NOT CONNECTED IN THIS VERSION
 int RST   = 0;									// 0, not connected
 
@@ -127,13 +133,6 @@ uint32_t lastTmst = 0;
 
 SimpleTimer timer; 								// Timer is needed for delayed sending
 
-// You can switch webserver off if not necessary but probably better to leave it in.
-#if A_SERVER==1
-#include <Streaming.h>          				// http://arduiniana.org/libraries/streaming/
-  String webPage;
-  ESP8266WebServer server(SERVERPORT);
-#endif
-
 #define TX_BUFF_SIZE  2048						// Upstream buffer to send to MQTT
 #define RX_BUFF_SIZE  1024						// Downstream received from MQTT
 #define STATUS_SIZE	  512						// This should(!) be enough based on the static text part.. was 1024
@@ -143,7 +142,7 @@ uint8_t buff_down[RX_BUFF_SIZE];				// Buffer for downstream
 uint16_t lastToken = 0x00;
 
 #if GATEWAYNODE==1
-uint16_t frameCount=1;							// We REALLY should write this to SPIFF file
+uint16_t frameCount=0;							// We write this to SPIFF file
 #endif
 
 // ----------------------------------------------------------------------------
@@ -177,7 +176,7 @@ void gway_failed(const char *file, uint16_t line) {
 // ----------------------------------------------------------------------------
 void printDigits(int digits)
 {
-    // utility function for digital clock display: prints leading 0
+    // utility function for digital clock display: prints preceding colon and leading 0
     if(digits < 10)
         Serial.print(F("0"));
     Serial.print(digits);
@@ -326,22 +325,32 @@ IPAddress getDnsIP() {
 // ----------------------------------------------------------------------------
 // config.txt is a text file that contains line(!) with WPA configuration items
 // Each line contains an SSID and a Password for an access point
+//
 // ----------------------------------------------------------------------------
 int WlanReadWpa() {
 
-	const char wpafile[] = "/config.txt";
-	if (!SPIFFS.exists(wpafile)) {
-		Serial.println("ERROR:: WlanReadWpa, file does not exist");
-		return(-1);
-	}
-	File f = SPIFFS.open(wpafile, "r");
-	if (!f) {
-		Serial.println("ERROR:: WlanReadWpa, file open failed");
-		return(-1);
-	}
+	//const char wpafile[] = "/config.txt";
+	//if (!SPIFFS.exists(wpafile)) {
+	//	Serial.println("ERROR:: WlanReadWpa, file does not exist");
+	//	return(-1);
+	//}
+	//File f = SPIFFS.open(wpafile, "r");
+	//if (!f) {
+	//	Serial.println("ERROR:: WlanReadWpa, file open failed");
+	//	return(-1);
+	//}
+	
+	readConfig( CONFIGFILE, &gwayConfig);
+
+	if (gwayConfig.sf != (uint8_t) 0) sf = (sf_t) gwayConfig.sf;
+	if (gwayConfig.freq != (uint8_t) 0) freq = gwayConfig.freq;
+#if GATEWAYNODE == 1
+	if (gwayConfig.fcnt != (uint8_t) 0) frameCount = gwayConfig.fcnt;
+#endif	
 #if WIFIMANAGER > 0
-	String ssid=f.readStringUntil(',');
-	String pass=f.readStringUntil('\n');
+	String ssid=gwayConfig.ssid;
+	String pass=gwayConfig.pass;
+
 
 	char ssidBuf[ssid.length()+1];
 	ssid.toCharArray(ssidBuf,ssid.length()+1);
@@ -358,22 +367,25 @@ int WlanReadWpa() {
 	Serial.print(wpa[0].passw);
 	Serial.println(F(">"));
 #endif
-	f.close();
+
 }
 
 // ----------------------------------------------------------------------------
 // Print the WPA data of last WiFiManager to file
 // ----------------------------------------------------------------------------
 int WlanWriteWpa( char* ssid, char *pass) {
-	const char wpafile[] = "/config.txt";
-	File f = SPIFFS.open(wpafile, "w");
+
 	Serial.print(F("WlanWriteWpa:: ssid=")); Serial.print(ssid);
 	Serial.print(F(", pass=")); Serial.print(pass); Serial.println();
 	
-	f.print(ssid);
-	f.print(',');
-	f.println(pass);
-	f.close();
+	// Version 3.3 use of config file
+	String s((char *) ssid);
+	gwayConfig.ssid = s;
+	
+	String p((char *) pass);
+	gwayConfig.pass = p;
+	
+	writeConfig( CONFIGFILE, &gwayConfig);
 }
 
 // ----------------------------------------------------------------------------
@@ -436,12 +448,12 @@ int WlanConnect() {
 	Serial.println();
   	wifiManager.autoConnect(AP_NAME, AP_PASSWD );
 	//wifiManager.startConfigPortal(AP_NAME, AP_PASSWD );
-	// At this point, there IS a Wifi Access POint found and connected
+	// At this point, there IS a Wifi Access Point found and connected
 	// We must connect to the local SPIFFS storage to store the access point
 	//String s = WiFi.SSID();
 	//char ssidBuf[s.length()+1];
 	//s.toCharArray(ssidBuf,s.length()+1);
-	// Now look for the passwordF
+	// Now look for the password
 	struct station_config sta_conf;
 	wifi_station_get_config(&sta_conf);
 	
@@ -572,6 +584,12 @@ int readUdp(int packetSize, uint8_t * buff_down)
 		}
 	break;
 	default:
+#if GATEWAYMGT==1
+		// For simplicity, we send the first 4 bytes too
+		gateway_mgt(packetSize, buff_down);
+#else
+#endif
+
 		Serial.print(F(", ERROR ident not recognized: "));
 		Serial.println(ident);
 	break;
@@ -651,7 +669,7 @@ bool UDPconnect() {
 	bool ret = false;
 	unsigned int localPort = _LOCUDPPORT;			// To listen to return messages from WiFi
 	if (debug>=1) {
-		Serial.print(F("Connecting to UDP port "));
+		Serial.print(F("Local UDP port "));
 		Serial.println(localPort);
 	}
 	
@@ -805,10 +823,8 @@ void setup () {
 	delay(1000);
 	
 	wifi_station_set_hostname( "espgway" );
-#if WIFIMANAGER==1
+
 	if (SPIFFS.begin()) Serial.println(F("SPIFFS loaded success"));
-	//SPIFFS.format();								// Do this one time only!!
-#endif
 
 	// The following section can normnally be left OFF. Only for those suffering
 	// from exception problems due to am erro in the WiFi code of the ESP8266
@@ -905,47 +921,13 @@ void setup () {
 	Serial.print("Time: "); printTime();
 	Serial.println();
 
+	writeGwayCfg( CONFIGFILE );
+	Serial.println(F("Gateway configuration saved"));
+
 #if A_SERVER==1	
-	server.on("/", []() {
-		webPage = WifiServer("","");
-		server.send(200, "text/html", webPage);
-	});
-	server.on("/HELP", []() {
-		webPage = WifiServer("HELP","");
-		server.send(200, "text/html", webPage);
-	});
-	server.on("/RESET", []() {
-		webPage = WifiServer("RESET","");
-		server.send(200, "text/html", webPage);
-	});
-	server.on("/NEWSSID", []() {
-		webPage = WifiServer("NEWSSID","");
-		server.send(200, "text/html", webPage);
-	});
-	server.on("/DEBUG=0", []() {
-		webPage = WifiServer("DEBUG","0");
-		server.send(200, "text/html", webPage);
-	});
-	server.on("/DEBUG=1", []() {
-		webPage = WifiServer("DEBUG","1");
-		server.send(200, "text/html", webPage);
-	});
-	server.on("/DEBUG=2", []() {
-		webPage = WifiServer("DEBUG","2");
-		server.send(200, "text/html", webPage);
-	});
-	server.on("/DELAY=1", []() {
-		webPage = WifiServer("DELAY","1");
-		server.send(200, "text/html", webPage);
-	});
-	server.on("/DELAY=-1", []() {
-		webPage = WifiServer("DELAY","-1");
-		server.send(200, "text/html", webPage);
-	});
-	server.begin();											// Start the webserver
-	Serial.print(F("Admin Server started on port "));
-	Serial.println(SERVERPORT);
-#endif	
+	// Setup the webserver
+	setupWWW();
+#endif
 
 	Serial.println(F("--------------------------------------"));
 	delay(100);											// Wait after setup
@@ -969,7 +951,7 @@ void setup () {
 void loop ()
 {
 	uint32_t nowseconds;
-	int buff_index;
+	int buff_index=0;
 	int packetSize;
 	
 	// Receive Lora messages if there are any
@@ -993,6 +975,8 @@ void loop ()
 
 	while( (packetSize = Udp.parsePacket()) > 0) {		// Length of UDP message waiting
 		yield();
+		// Packet may be PKT_PUSH_ACK (0x01), PKT_PULL_ACK (0x03) or PKT_PULL_RESP (0x04)
+		// This command is found in byte 4 (buff_down[3])
 		if (readUdp(packetSize, buff_down) < 0) {
 			Serial.println(F("readUDP error"));
 		}

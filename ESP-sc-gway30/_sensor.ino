@@ -1,7 +1,7 @@
 //
-// Copyright (c) 2016 Maarten Westenberg version for ESP8266
-// Verison 3.2.2
-// Date: 2016-12-29
+// Copyright (c) 2016, 2017 Maarten Westenberg version for ESP8266
+// Verison 3.3.0
+// Date: 2017-01-02
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -11,19 +11,23 @@
 // which accompanies this distribution, and is available at
 // https://opensource.org/licenses/mit-license.php
 //
-// Author: Maarten Westenberg
+// NO WARRANTY OF ANY KIND IS PROVIDED
 //
-// This file contains the code for using the single channel gateway also as a sensor
-// node. 
-// You will have to specify the DevAddr and the AppSKey below (and on your LoRa backend).
+// Author: Maarten Westenberg (mw12554@hotmail.com)
+//
+// This file contains the code for using the single channel gateway also as a 
+// sensor node. 
+// You will have to specify the DevAddr and the AppSKey below (and on your LoRa
+// backend).
 // Also you will have to choose what sensors to forward to your application.
 //
 // ============================================================================
 		
 #if GATEWAYNODE==1
 
-//unsigned char DevAddr[4]  = { 0x02, 0x02, 0x04, 0x20 };	// Note: byte swapping done later
-unsigned char DevAddr[4]  = { 0x26, 0x01, 0x17, 0xE9 };	
+unsigned char DevAddr[4]  = { 0x02, 0x02, 0x04, 0x20 };	// Note: byte swapping done later
+//unsigned char DevAddr[4]  = { 0x26, 0x01, 0x17, 0xE9 };	
+
 unsigned char AppSKey[16] = { 0x02, 0x02, 0x04, 0x20, 0x00, 0x00, 0x00, 0x00, 0x54, 0x68, 0x69, 0x6E, 0x67, 0x73, 0x34, 0x55 };
 
 // ----------------------------------------------------------------------------
@@ -51,10 +55,12 @@ int LoRaSensors(uint8_t *buf) {
 
 	int internalSersors = readInternal(0x1A);
 	
-	buf[0] = 0x86;									// User code <lCode + len==3 + Parity
-	buf[1] = 0x80;									// lCode code <battery>
-	buf[2] = 0x3F;									// lCode code <value>
-	return 3;										// return the number of bytes added to the payload
+	buf[0] = 0x86;									// 134; User code <lCode + len==3 + Parity
+	buf[1] = 0x80;									// 128; lCode code <battery>
+	buf[2] = 0x3F;									//  63; lCode code <value>
+	return(3);										// return the number of bytes added to payload
+	// Parity = buf[0]==1 buf[1]=1 buf[2]=0 ==> even, so last bit of first byte must be 0
+
 }
 
 // ----------------------------------------------------------------------------
@@ -63,11 +69,20 @@ int LoRaSensors(uint8_t *buf) {
 // For the moment we use the AES library made by ideetron as this library
 // is also used in the LMIC stack.
 //
-// The function below follows the LoRa spec exactly
+// The function below follows the LoRa spec exactly.
 //
-// NOTE:: Be aware of the LICENSE of the AES library files which is GPL3
+// The resulting mumber of Bytes is returned by the functions. This means
+// 16 bytes per block, and as we add to the last block we also return 16
+// bytes for the last block.
+//
+// The LMIC code does not do this, so maybe we shorten the last block to only
+// the meaningful bytes in the last block. This means that encoded buffer
+// is exactly as big as the original message.
+//
+// NOTE:: Be aware that the LICENSE of the AES library files 
+//	that we are calling with AES_encrypt() is GPL3
 // ----------------------------------------------------------------------------
-void encodePacket(uint8_t *Data, uint8_t DataLength, uint16_t FrameCount, uint8_t Direction) {
+uint8_t encodePacket(uint8_t *Data, uint8_t DataLength, uint16_t FrameCount, uint8_t Direction) {
 
 	uint8_t i, j;
 	uint8_t Block_A[16];
@@ -109,7 +124,30 @@ void encodePacket(uint8_t *Data, uint8_t DataLength, uint16_t FrameCount, uint8_
 			Data++;
 		}
 	}
+	//return(numBlocks*16);			// Do we really want to return all 16 bytes in lastblock
+	return(DataLength);				// or only 16*(numBlocks-1)+bLen;
+
 }
+
+
+// ----------------------------------------------------------------------------
+// Provide a valid MIC 4-byte code (par 4.4 of spec, RFC4493)
+//
+// Although our own handler may choose not to interpret the last 4 bytes
+// of a PHYSPAYLOAD physical payload message of in internal sensor,
+// The official TTN (and other) backends will intrpret the complete message and
+// conclude that the generated message is bogus.
+// So we sill really simulate internal messages coming from the -1ch gateway
+// to come from a real sensor and append 4 MIC bytes to every message that are 
+// perfectly legimate
+// ----------------------------------------------------------------------------
+uint8_t micPacket(uint8_t *Data, uint8_t DataLength, uint16_t FrameCount, uint8_t Direction) {
+	
+
+
+	return true;
+}
+
 
 // ----------------------------------------------------------------------------
 // The gateway may also have local sensors that need reporting.
@@ -124,6 +162,7 @@ void encodePacket(uint8_t *Data, uint8_t DataLength, uint16_t FrameCount, uint8_
 // ----------------------------------------------------------------------------
 int sensorPacket(uint8_t * buff_up) {
 
+	uint8_t message[64];
 	uint8_t mlength = 0;
 	uint32_t tmst = micros();
 	
@@ -158,16 +197,26 @@ int sensorPacket(uint8_t * buff_up) {
 	uint8_t PayLength = LoRaSensors((uint8_t *)(message+mlength));
 	
 	// we have to include the AES functions at this stage in order to generate LoRa Payload.
-	encodePacket((uint8_t *)(message+mlength), PayLength, (uint16_t)frameCount, 0);
+	uint8_t CodeLength = encodePacket((uint8_t *)(message+mlength), PayLength, (uint16_t)frameCount, 0);
+
+	mlength += CodeLength;								// length inclusive sensor data
 	
-	mlength += PayLength;								// length inclusive sensor data	
+	// The last 4 bytes are MIC bytes. MIC is used by TTN (and others) to make sure that
+	// framecount is valid and the message is correctly encrypted.
+	message[mlength] = 0;
+	message[mlength+1] = 0;
+	message[mlength+2] = 0;
+	message[mlength+3] = 0;
 	mlength += 4;										// LMIC Not Used but we have to add MIC bytes to PHYPayload
+
+	Serial.print(F("sensorPacket, len: ")); 
+	Serial.println(CodeLength);
+	
+	int buffIndex = buildPacket(tmst, buff_up, message, mlength, true);
 	
 	frameCount++;
-	
-	Serial.println(F("sensorPacket"));
-	int buff_index = buildPacket(tmst, buff_up, message, mlength, true);
-	return(buff_index);
+	return(buffIndex);
+
 }
 
 

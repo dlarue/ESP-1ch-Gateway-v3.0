@@ -44,6 +44,14 @@ Version 3.0 includes WiFi Master support which makes it easy to use the 1-ch gat
 
 ##Features
 
+New features in version 3.3.0 (January 1, 2017)):
+
+- Redesign o fthe Webserver interface
+- Use of the SPIFFS filesystem to store SSID, Frequency, Spreading Factor and Framecounter to survice reboots and resets of the ESP8266
+- Possibility to set the Spreading Factor dynamically throug the web interface
+- Possibility to set the Frequency in the web interface
+- Reset the Framecounter in te webinterface
+
 New features in version 3.2.2 (December 29, 2016)):
 
 - Repair the situation where WIFIMANAGER was set to 0 in the ESP-sc-gway.h file. The sketch would not compile which is now repaired

@@ -1,7 +1,7 @@
-//
+// 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016 Maarten Westenberg version for ESP8266
-// Verison 3.2.2
-// Date: 2016-12-29
+// Verison 3.3.0
+// Date: 2016-12-30
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many others.
@@ -250,7 +250,7 @@ void rxLoraModem()
 	// prevent node to node communication
 	writeRegister(REG_INVERTIQ,0x27);							// 0x33, 0x27; to reset from TX
 	
-	// Max Payload length is dependent on 256byte buffer. At startup TX starts at
+	// Max Payload length is dependent on 256 byte buffer. At startup TX starts at
 	// 0x80 and RX at 0x00. RX therefore maximized at 128 Bytes
     writeRegister(REG_MAX_PAYLOAD_LENGTH,0x80);					// set 0x23 to 0x80
     writeRegister(REG_PAYLOAD_LENGTH,PAYLOAD_LENGTH);			// 0x22, 0x40; Payload is 64Byte long
@@ -664,7 +664,7 @@ int sendPacket(uint8_t *buff_down, uint8_t length) {
 // buff_up: The buffer that is generated for upstream
 // message: The payload message toincludein the the buff_up
 // messageLength: The number of bytes received by the LoRa transceiver
-// internal: Boolean value to indicate whethe rthe local sensor is processed
+// internal: Boolean value to indicate whether the local sensor is processed
 //
 // ----------------------------------------------------------------------------
 int buildPacket(uint32_t tmst, uint8_t *buff_up, uint8_t *message, char messageLength, bool internal) {
@@ -698,7 +698,7 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, uint8_t *message, char messageL
 	  prssi = readRegister(REG_PKT_RSSI);				// read register 0x1A
     
 	  // Correction of RSSI value based on chip used.	
-	  if (sx1272) {
+	  if (sx1272) {										// Is it a sx1272 radio?
 		rssicorr = 139;
 	  } else {											// Probably SX1276 or RFM95
 		rssicorr = 157;
@@ -771,28 +771,28 @@ int buildPacket(uint32_t tmst, uint8_t *buff_up, uint8_t *message, char messageL
 			buff_index += 12;
 			break;
 		case SF8:
-                memcpy((void *)(buff_up + buff_index), (void *)",\"datr\":\"SF8", 12);
-                buff_index += 12;
-                break;
+            memcpy((void *)(buff_up + buff_index), (void *)",\"datr\":\"SF8", 12);
+            buff_index += 12;
+            break;
 		case SF9:
-                memcpy((void *)(buff_up + buff_index), (void *)",\"datr\":\"SF9", 12);
-                buff_index += 12;
-                break;
+            memcpy((void *)(buff_up + buff_index), (void *)",\"datr\":\"SF9", 12);
+            buff_index += 12;
+            break;
 		case SF10:
-                memcpy((void *)(buff_up + buff_index), (void *)",\"datr\":\"SF10", 13);
-                buff_index += 13;
-                break;
+            memcpy((void *)(buff_up + buff_index), (void *)",\"datr\":\"SF10", 13);
+            buff_index += 13;
+            break;
 		case SF11:
-                memcpy((void *)(buff_up + buff_index), (void *)",\"datr\":\"SF11", 13);
-                buff_index += 13;
-                break;
+            memcpy((void *)(buff_up + buff_index), (void *)",\"datr\":\"SF11", 13);
+            buff_index += 13;
+            break;
 		case SF12:
-                memcpy((void *)(buff_up + buff_index), (void *)",\"datr\":\"SF12", 13);
-                buff_index += 13;
-                break;
+            memcpy((void *)(buff_up + buff_index), (void *)",\"datr\":\"SF12", 13);
+            buff_index += 13;
+            break;
 		default:
-                memcpy((void *)(buff_up + buff_index), (void *)",\"datr\":\"SF?", 12);
-                buff_index += 12;
+            memcpy((void *)(buff_up + buff_index), (void *)",\"datr\":\"SF?", 12);
+            buff_index += 12;
 	}
 	memcpy((void *)(buff_up + buff_index), (void *)"BW125\"", 6);
 	buff_index += 6;
@@ -846,6 +846,7 @@ int receivePacket(uint8_t * buff_up) {
 	long SNR;
     int rssicorr;
 	char cfreq[12] = {0};										// Character array to hold freq in MHz
+	uint8_t message[256];
 	uint8_t messageLength = 0;
 	
 	// Regular message received, see SX1276 spec table 18
@@ -864,6 +865,13 @@ int receivePacket(uint8_t * buff_up) {
         if((messageLength = receivePkt(message)) > 0){
 			// external received packet, so last parameter is false
             int buff_index = buildPacket(tmst, buff_up, message, messageLength, false);
+#if DEBUG > 1													// app behave with buffer correct content
+			if (message[0] != 0x40) { 
+				Serial.print(F("receivedPkt:: <"));
+				Serial.print(messageLength);
+				Serial.print(F("> Warning ")); 
+			}
+#endif
 			return(buff_index);
 			
         } // received a message
@@ -874,5 +882,19 @@ int receivePacket(uint8_t * buff_up) {
 }
 
 
+// ----------------------------------------------------------------------------
+// cadScanner()
+//
+// CAD Scanner will scan on the given channel for a valid Preamble signal.
+// So instead of receiving continuous on a given channel/sf combination
+// we will wait on the given channel and scan for a preamble. Once received
+// we will set the radio to the SF received.
+//
+// ----------------------------------------------------------------------------
+void cadScanner() {
 
-
+	writeRegister(REG_SYNC_WORD, 0x34);				// set 0x39 to 0x34 LORA_MAC_PREAMBLE
+	
+	// Set the channel for CAD
+	
+}

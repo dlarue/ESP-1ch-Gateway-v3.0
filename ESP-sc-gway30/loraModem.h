@@ -1,7 +1,7 @@
-//
+// 1-channel LoRa Gateway for ESP8266
 // Copyright (c) 2016 Maarten Westenberg version for ESP8266
-// Verison 3.2.2
-// Date: 2016-12-29
+// Verison 3.3.0
+// Date: 2016-12-30
 //
 // 	based on work done by Thomas Telkamp for Raspberry PI 1ch gateway
 //	and many other contributors.
@@ -26,22 +26,27 @@ long txDelay= 0000;								// extra delay time on top of server TMST
 // Frequencies
 // Set center frequency. If in doubt, choose the first one, comment all others
 // Each "real" gateway should support the first 3 frequencies according to LoRa spec.
-uint32_t  freq = 868100000; 					// Channel 0, 868.1 MHz
-//uint32_t  freq = 868300000; 					// Channel 1, 868.3 MHz
-//uint32_t  freq = 868500000; 					// Channel 1, 868.5 MHz
-//uint32_t  freq = 867100000; 					// Channel 2, 867.1 MHz
-//uint32_t  freq = 867300000; 					// in Mhz! (867.3)
-//uint32_t  freq = 867500000; 					// in Mhz! (867.5)
-//uint32_t  freq = 867700000; 					// in Mhz! (867.7)
-//uint32_t  freq = 867900000; 					// in Mhz! (867.9)
-//uint32_t  freq = 868800000; 					// in Mhz! (868.8)
-//uint32_t  freq = 869525000; 					// in Mhz! (869.525)
-// TTN defines an additional channel at 869.525Mhz using SF9 for class B. Not used
 
+int freqs [] = { 
+	868100000, 									// Channel 0, 868.1 MHz
+	868300000, 									// Channel 1, 868.3 MHz
+	868500000, 									// Channel 2, 868.5 MHz
+	867100000, 									// Channel 3, 867.1 MHz
+	867300000, 
+	867500000, 
+	867700000, 
+	867900000, 
+	868800000, 
+	869525000									// Channel, special for responses gateway (10%)
+	// TTN defines an additional channel at 869.525Mhz using SF9 for class B. Not used
+};
+uint32_t  freq = freqs[0];
 
 // ============================================================================
 // Set all definitions for Gateway
 // ============================================================================	
+// Register definitions. These are the addresses of the TFM95, SX1276 that we 
+// need to set in the program.
 
 #define REG_FIFO                    0x00
 #define REG_OPMODE                  0x01
@@ -80,7 +85,7 @@ uint32_t  freq = 868100000; 					// Channel 0, 868.1 MHz
 #define REG_PADAC_SX1276			0x4D
 
 // ----------------------------------------
-// Used by REG_PAYLOAD_LENGTH to set receive patyload lenth
+// Used by REG_PAYLOAD_LENGTH to set receive patyload length
 #define PAYLOAD_LENGTH              0x40
 
 // ----------------------------------------
@@ -118,6 +123,19 @@ uint32_t  freq = 868100000; 					// Channel 0, 868.1 MHz
 #define REG2                        0x84
 
 // ----------------------------------------
+// MC1 sx1276 RegModemConfig1
+#define SX1276_MC1_BW_125           0x70
+#define SX1276_MC1_BW_250           0x80
+#define SX1276_MC1_BW_500           0x90
+#define SX1276_MC1_CR_4_5           0x02
+#define SX1276_MC1_CR_4_6           0x04
+#define SX1276_MC1_CR_4_7           0x06
+#define SX1276_MC1_CR_4_8           0x08
+#define SX1276_MC1_IMPLICIT_HEADER_MODE_ON  0x01
+
+#define SX72_MC1_LOW_DATA_RATE_OPTIMIZE     0x01 	// mandated for SF11 and SF12
+
+// ----------------------------------------
 // MC2 definitions
 #define SX72_MC2_FSK                0x00
 #define SX72_MC2_SF7                0x70		// SF7 == 0x07, so (SF7<<4) == SX7_MC2_SF7
@@ -128,20 +146,7 @@ uint32_t  freq = 868100000; 					// Channel 0, 868.1 MHz
 #define SX72_MC2_SF12               0xC0
 
 // ----------------------------------------
-// MC1 sx1276 RegModemConfig1
-#define SX1276_MC1_BW_125                   0x70
-#define SX1276_MC1_BW_250                   0x80
-#define SX1276_MC1_BW_500                   0x90
-#define SX1276_MC1_CR_4_5                   0x02
-#define SX1276_MC1_CR_4_6                   0x04
-#define SX1276_MC1_CR_4_7                   0x06
-#define SX1276_MC1_CR_4_8                   0x08
-#define SX1276_MC1_IMPLICIT_HEADER_MODE_ON  0x01
-
-#define SX72_MC1_LOW_DATA_RATE_OPTIMIZE     0x01 	// mandated for SF11 and SF12
-
-// ----------------------------------------
-// mc3
+// MC3
 #define SX1276_MC3_LOW_DATA_RATE_OPTIMIZE  0x08
 #define SX1276_MC3_AGCAUTO                 0x04
 
@@ -156,33 +161,40 @@ uint32_t  freq = 868100000; 					// Channel 0, 868.1 MHz
 #define FRF_LSB						0x66
 
 // ----------------------------------------
-// DIO function mappings                D0D1D2D3
-#define MAP_DIO0_LORA_RXDONE   0x00  // 00------
-#define MAP_DIO0_LORA_TXDONE   0x40  // 01------
-#define MAP_DIO1_LORA_RXTOUT   0x00  // --00----
-#define MAP_DIO1_LORA_NOP      0x30  // --11----
-#define MAP_DIO2_LORA_NOP      0xC0  // ----11--
+// DIO function mappings           		     D0D1D2D3
+#define MAP_DIO0_LORA_RXDONE   		0x00  // 00------
+#define MAP_DIO0_LORA_TXDONE   		0x40  // 01------
+#define MAP_DIO1_LORA_RXTOUT   		0x00  // --00----
+#define MAP_DIO1_LORA_NOP      		0x30  // --11----
+#define MAP_DIO2_LORA_NOP      		0xC0  // ----11--
 
-#define MAP_DIO0_FSK_READY     0x00  // 00------ (packet sent / payload ready)
-#define MAP_DIO1_FSK_NOP       0x30  // --11----
-#define MAP_DIO2_FSK_TXNOP     0x04  // ----01--
-#define MAP_DIO2_FSK_TIMEOUT   0x08  // ----10--
+#define MAP_DIO0_FSK_READY     		0x00  // 00------ (packet sent / payload ready)
+#define MAP_DIO1_FSK_NOP       		0x30  // --11----
+#define MAP_DIO2_FSK_TXNOP     		0x04  // ----01--
+#define MAP_DIO2_FSK_TIMEOUT   		0x08  // ----10--
 
 // ----------------------------------------
 // Bits masking the corresponding IRQs from the radio
-#define IRQ_LORA_RXTOUT_MASK 0x80
-#define IRQ_LORA_RXDONE_MASK 0x40
-#define IRQ_LORA_CRCERR_MASK 0x20
-#define IRQ_LORA_HEADER_MASK 0x10
-#define IRQ_LORA_TXDONE_MASK 0x08
-#define IRQ_LORA_CDDONE_MASK 0x04
-#define IRQ_LORA_FHSSCH_MASK 0x02
-#define IRQ_LORA_CDDETD_MASK 0x01
+#define IRQ_LORA_RXTOUT_MASK 		0x80
+#define IRQ_LORA_RXDONE_MASK 		0x40
+#define IRQ_LORA_CRCERR_MASK 		0x20
+#define IRQ_LORA_HEADER_MASK 		0x10
+#define IRQ_LORA_TXDONE_MASK 		0x08
+#define IRQ_LORA_CDDONE_MASK 		0x04
+#define IRQ_LORA_FHSSCH_MASK 		0x02
+#define IRQ_LORA_CDDETD_MASK 		0x01
 
 
-#define PROTOCOL_VERSION  1
-#define PKT_PUSH_DATA 0
-#define PKT_PUSH_ACK  1
-#define PKT_PULL_DATA 2
-#define PKT_PULL_RESP 3
-#define PKT_PULL_ACK  4
+// ----------------------------------------
+// Definitions for UDP message arriving from server
+#define PROTOCOL_VERSION			0x01
+#define PKT_PUSH_DATA				0x00
+#define PKT_PUSH_ACK				0x01
+#define PKT_PULL_DATA				0x02
+#define PKT_PULL_RESP				0x03
+#define PKT_PULL_ACK				0x04
+
+#define MGT_RESET					0x15	// Not a LoRa Gateway Spec message
+#define MGT_SET_SF					0x16
+#define MGT_SET_FREQ				0x17
+
