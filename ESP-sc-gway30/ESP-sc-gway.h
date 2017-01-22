@@ -112,11 +112,11 @@ wpas wpa[] = {
 
 // Gateway Ident definitions
 #define _DESCRIPTION "ESP Gateway"
-#define _EMAIL "<your email>"
+#define _EMAIL "doug.larue@gmail.com" //djl "<your email>"
 #define _PLATFORM "ESP8266"
-#define _LAT 32.7061
-#define _LON -117.1681
-#define _ALT 0
+#define _LAT 32.79238 //Ingraham 32.7061
+#define _LON -117.23860 //Fortuna -117.1681
+#define _ALT 2.0 //djl 0
 
 
 								
@@ -128,8 +128,8 @@ wpas wpa[] = {
 #define _BAUDRATE 115200		// Works for debug messages to serial momitor (if attached).
 
 // ntp
-#define NTP_TIMESERVER "us.pool.ntp.org"	// Country and region specific
-#define NTP_TIMEZONES	2		// How far is our Timezone from UTC (excl daylight saving/summer time)
+#define NTP_TIMESERVER "us.pool.ntp.org" //djl "nl.pool.ntp.org"	// Country and region specific
+#define NTP_TIMEZONES	-8 //djl 2		// How far is our Timezone from UTC (excl daylight saving/summer time)
 #define SECS_PER_HOUR	3600
 
 #if !defined(CFG_noassert)
