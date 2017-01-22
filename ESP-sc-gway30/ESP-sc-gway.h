@@ -24,7 +24,7 @@
 // As the name says, in principle the single channel gateway listens to one channel/frequency
 // and to one spreading factor only.
 // NOTE: The frequency is set in the loraModem.h file and is default 868.100000 MHz.
-#define _SPREADING SF9							// Send and receive on this Spreading Factor (only)
+#define _SPREADING SF7  //djl SF9	// Send and receive on this Spreading Factor (only)
 
 // Single channel gateways if they behave strict should only use one frequency channel and
 // one spreading factor. However, the TTN backend replies on RX2 timeslot for spreading factors
@@ -35,7 +35,7 @@
 // gateway
 // NOTE: If your node has only one frequency enabled and one SF, you must set this to 1
 //		in order to receive downlink messages
-#define _STRICT_1CH	0							// 1 is strict, 0 is as sent by backend
+#define _STRICT_1CH	1 //djl 	// 1 is strict, 0 is as sent by backend
 
 // Gather statistics on sensor and Wifi status
 #define STATISTICS 1
@@ -65,7 +65,7 @@
 // NOTE: Be aware that these messages are NOT LoRa and NOT LoRa Gateway spec compliant.
 //	However that should not interfere with regular gateway operation but instead offer 
 //	functions to reset certain parameters from remote.
-#define GATEWAYMGT 1
+#define GATEWAYMGT 0 //djl 1
 
 // Define the correct radio type that you are using
 #define CFG_sx1276_radio		
@@ -83,7 +83,7 @@
 // NOTE: Structure needs at least one (empty) entry.
 //		So WPASIZE must be >= 1
 struct wpas {
-	char login[32];				// Maximum Buffer Size (and allocated memory)
+	char login[32];		// Maximum Buffer Size (and allocated memory)
 	char passw[64];
 };
 
@@ -103,8 +103,8 @@ wpas wpa[] = {
 
 // MQTT definitions
 #define _TTNPORT 1700
-//#define _TTNSERVER "router.eu.staging.thethings.network"
-#define _TTNSERVER "router.eu.thethings.network"
+//djl #define _TTNSERVER "router.eu.thethings.network"
+#define _TTNSERVER "router.us.thethings.network"
 
 // Port is UDP port in this program
 //#define _THINGPORT 1700						// ttb.things4u.eu
@@ -114,8 +114,8 @@ wpas wpa[] = {
 #define _DESCRIPTION "ESP Gateway"
 #define _EMAIL "<your email>"
 #define _PLATFORM "ESP8266"
-#define _LAT 52
-#define _LON 6
+#define _LAT 32.7061
+#define _LON -117.1681
 #define _ALT 0
 
 
@@ -128,7 +128,7 @@ wpas wpa[] = {
 #define _BAUDRATE 115200		// Works for debug messages to serial momitor (if attached).
 
 // ntp
-#define NTP_TIMESERVER "nl.pool.ntp.org"	// Country and region specific
+#define NTP_TIMESERVER "us.pool.ntp.org"	// Country and region specific
 #define NTP_TIMEZONES	2		// How far is our Timezone from UTC (excl daylight saving/summer time)
 #define SECS_PER_HOUR	3600
 
